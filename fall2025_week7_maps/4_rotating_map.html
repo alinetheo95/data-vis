@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Timeline Map</title>
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.15.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.15.0/mapbox-gl.js"></script>
+<script src="https://d3js.org/d3.v7.min.js" charset="utf-8"></script>
+
+<style>
+body { margin: 0; padding: 0; }
+#map { position: absolute; top: 0; bottom: 0; width: 100%; }
+</style>
+</head>
+<body>
+
+<!-- 
+//References:
+This tutorial starts withe the basics here, I have restyled this example for our purposes
+https://docs.mapbox.com/mapbox-gl-js/example/globe-spin/
+
+I also use the data found in this example - it is saved locally as the earthqukes.json file
+https://docs.mapbox.com/mapbox-gl-js/example/timeline-animation/ 
+
+-->
+
+<style>
+</style>
+
+<div id="map"></div>
+<div id="map"></div>
+<script>
+
+    mapboxgl.accessToken = 'pk.eyJ1IjoiampqaWlhMTIzIiwiYSI6ImNpbDQ0Z2s1OTN1N3R1eWtzNTVrd29lMDIifQ.gSWjNbBSpIFzDXU2X5YCiQ';
+   let map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/jjjiia123/cm2eroxs6003n01pbchy91onv',
+        zoom: 1.5,
+        center: [-90, 40]
+    });
+        const magScale = d3.scaleLinear().domain([6,9.5]).range([1,15])
+
+
+    Promise.all([d3.json("earthquakes.json")])
+    .then(function(data){
+        var earthquakes = data[0]
+        drawMap(earthquakes)
+       
+   
+
+    })
+
+
+     function project(d){
+        return map.project(new mapboxgl.LngLat(d[0], d[1]))
+     }
+
+     function update() {
+    // const project = (d) => d.Longitud !== "NA" && map.project(new mapboxgl.LngLat(d.Longitud, d.Latitud));
+      d3.selectAll("circle")
+        .attr("cx", function(d){return project(d.geometry.coordinates).x})
+        .attr("cy", (d) => project(d.geometry.coordinates).y);
+      }
+
+
+
+    function drawDots(earthquakes){
+        const container = map.getCanvasContainer();
+
+        const svg = d3
+        .select(container)
+        .append("svg")
+        .attr('class', 'map-svg')
+        .attr("width", "100%")
+        .attr("height", "600")
+        .style("position", "absolute")
+        .style("z-index", 2);
+
+        const dots = svg
+        .selectAll("circle")
+        .data(earthquakes.features)
+        .join("circle")
+        .attr('class', 'circle')
+        .attr("opacity",.2)
+        .attr("r", function(d){
+            return magScale(d.properties.mag)
+        })
+        .style("fill", "gold")
+
+       d3.selectAll("circle")
+       .each(function(d){
+        console.log(d)
+        let radius = magScale(d.properties.mag)
+       })
+        
+
+      //  update()
+
+    }
+
+    function drawMap(earthquakes){
+    
+    map.on('style.load', () => {
+        map.setFog({}); // Set the default atmosphere style
+    });
+    // The following values can be changed to control rotation speed:
+    // At low zooms, complete a revolution every two minutes.
+    const secondsPerRevolution = 120;
+    // Above zoom level 5, do not rotate.
+    const maxSpinZoom = 5;
+    // Rotate at intermediate speeds between zoom levels 3 and 5.
+    const slowSpinZoom = 3;
+    let userInteracting = false;
+    let spinEnabled = true;
+    function spinGlobe() {
+        const zoom = map.getZoom();
+        if (spinEnabled && !userInteracting && zoom < maxSpinZoom) {
+            let distancePerSecond = 360 / secondsPerRevolution;
+            if (zoom > slowSpinZoom) {
+                // Slow spinning at higher zooms
+                const zoomDif =
+                    (maxSpinZoom - zoom) / (maxSpinZoom - slowSpinZoom);
+                distancePerSecond *= zoomDif;
+            }
+            const center = map.getCenter();
+            center.lng -= distancePerSecond;
+            // Smoothly animate the map over one second.
+            // When this animation is complete, it calls a 'moveend' event.
+            map.easeTo({ center, duration: 1000, easing: (n) => n });
+        }
+    }
+    // When animation is complete, start spinning if there is no ongoing interaction
+    map.on('moveend', () => {
+        spinGlobe();
+
+    });
+    map.on("load",()=>{
+        drawDots(earthquakes)
+        // drawData(map,earthquakes)
+    })
+   //   map.on("viewreset", update(map));
+      map.on("move", ()=>{
+        update()});
+   // spinGlobe();
+    }
+</script>
+
+</body>
+</html>
